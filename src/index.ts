@@ -427,11 +427,13 @@ async function buildIos(options: BuildIosOptions) {
     "CODE_SIGN_IDENTITY=Apple Distribution",
   ]);
 
-  /*
-   |--------------------------------------------------------------------------
-   | export options plist
-   |--------------------------------------------------------------------------
-   */
+
+  const exportOptionsPath = "native/engine/os/ExportOptions.plist"
+  if (!fs.existsSync(exportOptionsPath)) {
+    console.error(`ExportOptions.plist not found, path [${exportOptionsPath}]`)
+    return
+  }
+
 
   /*
    |--------------------------------------------------------------------------
