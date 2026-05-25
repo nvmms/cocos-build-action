@@ -24,6 +24,12 @@ inputs:
   ios-team-id:
     required: false
 
+  xcode-project:
+    required: false
+
+  xcode-scheme:
+    required: false
+
   android-keystore:
     required: false
 

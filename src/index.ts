@@ -13,8 +13,6 @@ interface BuildIosOptions {
   iosProfile: string;
   iosProfileUuid: string;
   iosTeamId: string;
-  bundleId: string;
-  profileName: string;
   xcodeProject: string;
   xcodeScheme: string;
 }
@@ -32,9 +30,6 @@ async function run() {
     const iosProfileUuid = core.getInput("ios-profile-uuid");
     const iosTeamId = core.getInput("ios-team-id");
 
-    const bundleId = core.getInput("bundle-id");
-    const profileName = core.getInput("profile-name");
-
     const xcodeProject = core.getInput("xcode-project");
     const xcodeScheme = core.getInput("xcode-scheme");
 
@@ -48,8 +43,6 @@ async function run() {
           iosProfile,
           iosProfileUuid,
           iosTeamId,
-          bundleId,
-          profileName,
           xcodeProject,
           xcodeScheme,
         });
@@ -239,8 +232,6 @@ async function buildIos(options: BuildIosOptions) {
     iosProfile,
     iosProfileUuid,
     iosTeamId,
-    bundleId,
-    profileName,
     xcodeProject,
     xcodeScheme,
   } = options;
