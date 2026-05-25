@@ -100,16 +100,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Dependencies
-        run: npm install
-
       - name: Build IPA
-        uses: your-name/cocos-build-action@v1
+        uses: nvmms/cocos-build-action
         with:
           platform: ios
 
