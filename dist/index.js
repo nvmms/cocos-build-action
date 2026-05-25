@@ -33830,7 +33830,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const cache = __importStar(__nccwpck_require__(5116));
 const core = __importStar(__nccwpck_require__(7484));
-const exec = __importStar(__nccwpck_require__(5236));
+const exec_1 = __nccwpck_require__(5236);
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
 const tools_1 = __nccwpck_require__(1732);
@@ -33939,7 +33939,7 @@ async function buildIos(options) {
     else {
         console.log("npm cache miss");
     }
-    await exec.exec("npm", ["ci"]);
+    await (0, exec_1.exec)("npm", ["ci"]);
     if (!npmHit) {
         await (0, tools_1.saveCacheSafe)([`${home}/.npm`], npmCacheKey);
     }
@@ -33970,9 +33970,11 @@ async function buildIos(options) {
      |--------------------------------------------------------------------------
      */
     const cocosCreator = findCocosCreatorBinary();
-    await exec.exec("bash", [
-        "-lc",
-        `"${cocosCreator}" --project . --build platform=ios;configPath=./build-config/buildConfig_ios.json`
+    await (0, exec_1.exec)(cocosCreator, [
+        '--project',
+        '.',
+        '--build',
+        'platform=ios;configPath=./build-config/buildConfig_ios.json'
     ]);
     if (!fs.existsSync("./build/ios/proj")) {
         throw new Error("cocos build failed");
@@ -34022,7 +34024,7 @@ async function buildIos(options) {
      | xcode archive
      |--------------------------------------------------------------------------
      */
-    await exec.exec("xcodebuild", [
+    await (0, exec_1.exec)("xcodebuild", [
         "-project",
         xcodeProject,
         "-scheme",
@@ -34046,7 +34048,7 @@ async function buildIos(options) {
      | export ipa
      |--------------------------------------------------------------------------
      */
-    await exec.exec("xcodebuild", [
+    await (0, exec_1.exec)("xcodebuild", [
         "-exportArchive",
         "-archivePath",
         "build/app.xcarchive",

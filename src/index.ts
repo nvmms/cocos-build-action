@@ -1,6 +1,6 @@
 import * as cache from "@actions/cache";
 import * as core from "@actions/core";
-import * as exec from "@actions/exec";
+import { exec } from "@actions/exec";
 import AdmZip from "adm-zip";
 import * as fs from "fs";
 import * as path from "path";
@@ -172,7 +172,7 @@ async function buildIos(options: BuildIosOptions) {
     console.log("npm cache miss");
   }
 
-  await exec.exec("npm", ["ci"]);
+  await exec("npm", ["ci"]);
 
   if (!npmHit) {
     await saveCacheSafe(
@@ -230,9 +230,11 @@ async function buildIos(options: BuildIosOptions) {
 
   const cocosCreator = findCocosCreatorBinary();
 
-  await exec.exec("bash", [
-    "-lc",
-    `"${cocosCreator}" --project . --build platform=ios;configPath=./build-config/buildConfig_ios.json`
+  await exec(cocosCreator, [
+    '--project',
+    '.',
+    '--build',
+    'platform=ios;configPath=./build-config/buildConfig_ios.json'
   ]);
 
   if (!fs.existsSync("./build/ios/proj")) {
@@ -312,7 +314,7 @@ async function buildIos(options: BuildIosOptions) {
    |--------------------------------------------------------------------------
    */
 
-  await exec.exec("xcodebuild", [
+  await exec("xcodebuild", [
     "-project",
     xcodeProject,
     "-scheme",
@@ -341,7 +343,7 @@ async function buildIos(options: BuildIosOptions) {
    |--------------------------------------------------------------------------
    */
 
-  await exec.exec("xcodebuild", [
+  await exec("xcodebuild", [
     "-exportArchive",
     "-archivePath",
     "build/app.xcarchive",
