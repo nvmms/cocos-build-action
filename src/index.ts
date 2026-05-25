@@ -66,8 +66,7 @@ async function prepareCocos(cocosUrl: string) {
   // 1. 先尝试命中 zip 缓存
   const hit = await cache.restoreCache(
     [zipPath],
-    cocosKey,
-    ["cocos-"]
+    cocosKey
   );
 
   if (hit) {
@@ -94,13 +93,8 @@ async function prepareCocos(cocosUrl: string) {
 
   console.log("extract cocos creator...");
 
-  const zip = new AdmZip(zipPath);
-  zip.extractAllTo(extractDir, true);
-
-  // 3. 调试检查
-  sh(`
-    ls -la ${extractDir}/CocosCreator.app/Contents/MacOS/CocosCreator
-    file ${extractDir}/CocosCreator.app/Contents/MacOS/CocosCreator
+  await sh(`
+    ditto -xk cocos.zip cocos-editor
   `);
 
   return extractDir;
