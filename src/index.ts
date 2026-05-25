@@ -236,11 +236,9 @@ async function buildIos(options: BuildIosOptions) {
 
   const cocosCreator = findCocosCreatorBinary();
 
-  await exec.exec(cocosCreator, [
-    "--project",
-    ".",
-    "--build",
-    "platform=ios;configPath=./build-config/buildConfig_ios.json",
+  await exec.exec("bash", [
+    "-lc",
+    `"${cocosCreator}" --project . --build platform=ios;configPath=./build-config/buildConfig_ios.json`
   ]);
 
   if (!fs.existsSync("./build/ios/proj")) {
