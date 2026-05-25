@@ -4,7 +4,7 @@ import * as exec from "@actions/exec";
 import AdmZip from "adm-zip";
 import * as fs from "fs";
 import * as path from "path";
-import { downloadFile, getInput, hashDir, hashFile, saveCacheSafe, sh, sha256 } from "./tools";
+import { downloadFile, getFileNameFromUrl, getInput, hashDir, hashFile, saveCacheSafe, sh, sha256 } from "./tools";
 
 interface BuildIosOptions {
   iosCertP12: string;
@@ -58,47 +58,52 @@ async function run() {
 run();
 
 async function prepareCocos(cocosUrl: string) {
-  const cocosKey = "cocos-" + sha256(cocosUrl);
+  const cocosKey = getFileNameFromUrl(cocosUrl);
 
+  const zipPath = "cocos.zip";
+  const extractDir = "cocos-editor";
+
+  // 1. 先尝试命中 zip 缓存
   const hit = await cache.restoreCache(
-    ["cocos-editor"],
-    cocosKey
+    [zipPath],
+    cocosKey,
+    ["cocos-"]
   );
 
   if (hit) {
-    console.log("cocos cache hit");
-    return;
+    console.log("cocos zip cache hit");
+  } else {
+    console.log("cache miss, downloading cocos...");
+
+    // 清理旧文件
+    fs.rmSync(zipPath, { force: true });
+    fs.rmSync(extractDir, { recursive: true, force: true });
+
+    await downloadFile(cocosUrl, zipPath);
+
+    const saved = await cache.saveCache(
+      [zipPath],
+      cocosKey
+    );
+
+    console.log("zip cached:", saved);
   }
 
-  fs.rmSync("cocos-editor", {
-    recursive: true,
-    force: true,
-  });
-
-  fs.rmSync("cocos.zip", {
-    force: true,
-  });
-
-  console.log("downloading cocos creator...");
-
-  await downloadFile(cocosUrl, "cocos.zip");
+  // 2. 每次都解压（保证一致性）
+  fs.rmSync(extractDir, { recursive: true, force: true });
 
   console.log("extract cocos creator...");
 
-  const zip = new AdmZip("cocos.zip");
+  const zip = new AdmZip(zipPath);
+  zip.extractAllTo(extractDir, true);
 
-  zip.extractAllTo("cocos-editor", true);
-
-  console.log(process.platform)
+  // 3. 调试检查
   sh(`
-    ls -la /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
-    file /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
-    `)
+    ls -la ${extractDir}/CocosCreator.app/Contents/MacOS/CocosCreator
+    file ${extractDir}/CocosCreator.app/Contents/MacOS/CocosCreator
+  `);
 
-  await saveCacheSafe(
-    ["cocos-editor"],
-    cocosKey
-  );
+  return extractDir;
 }
 
 function findCocosCreatorBinary(): string {

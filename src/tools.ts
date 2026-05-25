@@ -6,6 +6,12 @@ import * as fs from "fs";
 import * as https from "https";
 import * as path from "path";
 
+export function getFileNameFromUrl(url: string) {
+    const cleanUrl = new URL(url);
+    const fileName = path.basename(cleanUrl.pathname);
+    return fileName || "cocos.zip";
+}
+
 export function getInput(name: string): string {
     // 1. CLI 参数：--name=value
     const cliValue = getFromCLI(name);

@@ -37170,30 +37170,34 @@ async function run() {
 }
 run();
 async function prepareCocos(cocosUrl) {
-    const cocosKey = "cocos-" + (0, tools_1.sha256)(cocosUrl);
-    const hit = await cache.restoreCache(["cocos-editor"], cocosKey);
+    const cocosKey = (0, tools_1.getFileNameFromUrl)(cocosUrl);
+    const zipPath = "cocos.zip";
+    const extractDir = "cocos-editor";
+    // 1. 先尝试命中 zip 缓存
+    const hit = await cache.restoreCache([zipPath], cocosKey, ["cocos-"]);
     if (hit) {
-        console.log("cocos cache hit");
-        return;
+        console.log("cocos zip cache hit");
     }
-    fs.rmSync("cocos-editor", {
-        recursive: true,
-        force: true,
-    });
-    fs.rmSync("cocos.zip", {
-        force: true,
-    });
-    console.log("downloading cocos creator...");
-    await (0, tools_1.downloadFile)(cocosUrl, "cocos.zip");
+    else {
+        console.log("cache miss, downloading cocos...");
+        // 清理旧文件
+        fs.rmSync(zipPath, { force: true });
+        fs.rmSync(extractDir, { recursive: true, force: true });
+        await (0, tools_1.downloadFile)(cocosUrl, zipPath);
+        const saved = await cache.saveCache([zipPath], cocosKey);
+        console.log("zip cached:", saved);
+    }
+    // 2. 每次都解压（保证一致性）
+    fs.rmSync(extractDir, { recursive: true, force: true });
     console.log("extract cocos creator...");
-    const zip = new adm_zip_1.default("cocos.zip");
-    zip.extractAllTo("cocos-editor", true);
-    console.log(process.platform);
+    const zip = new adm_zip_1.default(zipPath);
+    zip.extractAllTo(extractDir, true);
+    // 3. 调试检查
     (0, tools_1.sh)(`
-    ls -la /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
-    file /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
-    `);
-    await (0, tools_1.saveCacheSafe)(["cocos-editor"], cocosKey);
+    ls -la ${extractDir}/CocosCreator.app/Contents/MacOS/CocosCreator
+    file ${extractDir}/CocosCreator.app/Contents/MacOS/CocosCreator
+  `);
+    return extractDir;
 }
 function findCocosCreatorBinary() {
     const result = [];
@@ -37414,6 +37418,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getFileNameFromUrl = getFileNameFromUrl;
 exports.getInput = getInput;
 exports.sh = sh;
 exports.sha256 = sha256;
@@ -37428,6 +37433,11 @@ const crypto = __importStar(__nccwpck_require__(6982));
 const fs = __importStar(__nccwpck_require__(9896));
 const https = __importStar(__nccwpck_require__(5692));
 const path = __importStar(__nccwpck_require__(6928));
+function getFileNameFromUrl(url) {
+    const cleanUrl = new URL(url);
+    const fileName = path.basename(cleanUrl.pathname);
+    return fileName || "cocos.zip";
+}
 function getInput(name) {
     // 1. CLI 参数：--name=value
     const cliValue = getFromCLI(name);
