@@ -37188,7 +37188,9 @@ async function prepareCocos(cocosUrl) {
     console.log("extract cocos creator...");
     const zip = new adm_zip_1.default("cocos.zip");
     zip.extractAllTo("cocos-editor", true);
+    console.log(process.platform);
     (0, tools_1.sh)(`
+    ls -la /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
     file /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
     `);
     await (0, tools_1.saveCacheSafe)(["cocos-editor"], cocosKey);
