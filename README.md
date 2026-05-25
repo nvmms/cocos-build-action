@@ -101,7 +101,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build IPA
-        uses: nvmms/cocos-build-action
+        uses: nvmms/cocos-build-action@v1
         with:
           platform: ios
 
