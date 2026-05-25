@@ -1,11 +1,10 @@
+import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
-import * as cache from "@actions/cache";
+import AdmZip from "adm-zip";
 import * as fs from "fs";
 import * as path from "path";
-import * as crypto from "crypto";
-import * as https from "https";
-import AdmZip from "adm-zip";
+import { downloadFile, getInput, hashDir, hashFile, saveCacheSafe, sh, sha256 } from "./tools";
 
 interface BuildIosOptions {
   iosCertP12: string;
@@ -19,19 +18,19 @@ interface BuildIosOptions {
 
 async function run() {
   try {
-    const cocosUrl = core.getInput("cocos-url");
+    const cocosUrl = getInput("cocos-url");
 
-    let platform = core.getInput("platform");
+    let platform = getInput("platform");
     platform = platform.toLowerCase();
 
-    const iosCertP12 = core.getInput("ios-cert-p12");
-    const iosCertPassword = core.getInput("ios-cert-password");
-    const iosProfile = core.getInput("ios-profile");
-    const iosProfileUuid = core.getInput("ios-profile-uuid");
-    const iosTeamId = core.getInput("ios-team-id");
+    const iosCertP12 = getInput("ios-cert-p12");
+    const iosCertPassword = getInput("ios-cert-password");
+    const iosProfile = getInput("ios-profile");
+    const iosProfileUuid = getInput("ios-profile-uuid");
+    const iosTeamId = getInput("ios-team-id");
 
-    const xcodeProject = core.getInput("xcode-project");
-    const xcodeScheme = core.getInput("xcode-scheme");
+    const xcodeProject = getInput("xcode-project");
+    const xcodeScheme = getInput("xcode-scheme");
 
     await prepareCocos(cocosUrl);
 
@@ -57,103 +56,6 @@ async function run() {
 }
 
 run();
-
-async function sh(script: string) {
-  await exec.exec("bash", ["-eo", "pipefail", "-c", script]);
-}
-
-function sha256(content: Buffer | string): string {
-  return crypto.createHash("sha256").update(content).digest("hex");
-}
-
-function hashFile(file: string): string {
-  return sha256(fs.readFileSync(file));
-}
-
-function hashDir(dir: string): string {
-  const hash = crypto.createHash("sha256");
-
-  function walk(current: string) {
-    const files = fs.readdirSync(current).sort();
-
-    for (const file of files) {
-      const full = path.join(current, file);
-      const stat = fs.statSync(full);
-
-      if (stat.isDirectory()) {
-        walk(full);
-      } else {
-        hash.update(full);
-        hash.update(fs.readFileSync(full));
-      }
-    }
-  }
-
-  walk(dir);
-
-  return hash.digest("hex");
-}
-
-async function saveCacheSafe(paths: string[], key: string) {
-  try {
-    await cache.saveCache(paths, key);
-    console.log(`cache saved: ${key}`);
-  } catch (err: any) {
-    console.log(`cache save skipped: ${err.message}`);
-  }
-}
-
-async function downloadFile(url: string, output: string) {
-  return new Promise<void>((resolve, reject) => {
-    const file = fs.createWriteStream(output);
-
-    https
-      .get(url, (response) => {
-        if (
-          response.statusCode &&
-          response.statusCode >= 300 &&
-          response.statusCode < 400 &&
-          response.headers.location
-        ) {
-          file.close();
-
-          fs.rmSync(output, {
-            force: true,
-          });
-
-          downloadFile(response.headers.location, output)
-            .then(resolve)
-            .catch(reject);
-
-          return;
-        }
-
-        if (response.statusCode !== 200) {
-          reject(
-            new Error(`download failed: ${response.statusCode}`)
-          );
-
-          return;
-        }
-
-        response.pipe(file);
-
-        file.on("finish", () => {
-          file.close();
-          resolve();
-        });
-      })
-      .on("error", (err) => {
-        file.close();
-
-        fs.rmSync(output, {
-          force: true,
-        });
-
-        reject(err);
-      });
-  });
-}
 
 async function prepareCocos(cocosUrl: string) {
   const cocosKey = "cocos-" + sha256(cocosUrl);
@@ -187,6 +89,12 @@ async function prepareCocos(cocosUrl: string) {
 
   zip.extractAllTo("cocos-editor", true);
 
+  console.log(process.platform)
+  sh(`
+    ls -la /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
+    file /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
+    `)
+
   await saveCacheSafe(
     ["cocos-editor"],
     cocosKey
@@ -194,23 +102,27 @@ async function prepareCocos(cocosUrl: string) {
 }
 
 function findCocosCreatorBinary(): string {
-  const candidates: string[] = [];
+  const result: string[] = [];
 
   function walk(dir: string) {
     const files = fs.readdirSync(dir);
 
     for (const file of files) {
       const full = path.join(dir, file);
+
+      if (!fs.existsSync(full)) continue;
+
       const stat = fs.statSync(full);
 
       if (stat.isDirectory()) {
         walk(full);
       } else {
+        const normalized = full.replace(/\\/g, "/");
+
         if (
-          full.endsWith("/Contents/MacOS/CocosCreator") ||
-          full.endsWith("\\Contents\\MacOS\\CocosCreator")
+          normalized.includes("CocosCreator.app/Contents/MacOS/CocosCreator")
         ) {
-          candidates.push(full);
+          result.push(full);
         }
       }
     }
@@ -218,11 +130,11 @@ function findCocosCreatorBinary(): string {
 
   walk("cocos-editor");
 
-  if (candidates.length === 0) {
-    throw new Error("cannot find CocosCreator binary");
+  if (result.length === 0) {
+    throw new Error("CocosCreator binary not found after extraction");
   }
 
-  return candidates[0];
+  return result[0];
 }
 
 async function buildIos(options: BuildIosOptions) {

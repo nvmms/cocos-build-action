@@ -37128,26 +37128,25 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+const cache = __importStar(__nccwpck_require__(5116));
 const core = __importStar(__nccwpck_require__(7484));
 const exec = __importStar(__nccwpck_require__(5236));
-const cache = __importStar(__nccwpck_require__(5116));
+const adm_zip_1 = __importDefault(__nccwpck_require__(1316));
 const fs = __importStar(__nccwpck_require__(9896));
 const path = __importStar(__nccwpck_require__(6928));
-const crypto = __importStar(__nccwpck_require__(6982));
-const https = __importStar(__nccwpck_require__(5692));
-const adm_zip_1 = __importDefault(__nccwpck_require__(1316));
+const tools_1 = __nccwpck_require__(1732);
 async function run() {
     try {
-        const cocosUrl = core.getInput("cocos-url");
-        let platform = core.getInput("platform");
+        const cocosUrl = (0, tools_1.getInput)("cocos-url");
+        let platform = (0, tools_1.getInput)("platform");
         platform = platform.toLowerCase();
-        const iosCertP12 = core.getInput("ios-cert-p12");
-        const iosCertPassword = core.getInput("ios-cert-password");
-        const iosProfile = core.getInput("ios-profile");
-        const iosProfileUuid = core.getInput("ios-profile-uuid");
-        const iosTeamId = core.getInput("ios-team-id");
-        const xcodeProject = core.getInput("xcode-project");
-        const xcodeScheme = core.getInput("xcode-scheme");
+        const iosCertP12 = (0, tools_1.getInput)("ios-cert-p12");
+        const iosCertPassword = (0, tools_1.getInput)("ios-cert-password");
+        const iosProfile = (0, tools_1.getInput)("ios-profile");
+        const iosProfileUuid = (0, tools_1.getInput)("ios-profile-uuid");
+        const iosTeamId = (0, tools_1.getInput)("ios-team-id");
+        const xcodeProject = (0, tools_1.getInput)("xcode-project");
+        const xcodeScheme = (0, tools_1.getInput)("xcode-scheme");
         await prepareCocos(cocosUrl);
         switch (platform) {
             case "ios":
@@ -37170,82 +37169,8 @@ async function run() {
     }
 }
 run();
-async function sh(script) {
-    await exec.exec("bash", ["-eo", "pipefail", "-c", script]);
-}
-function sha256(content) {
-    return crypto.createHash("sha256").update(content).digest("hex");
-}
-function hashFile(file) {
-    return sha256(fs.readFileSync(file));
-}
-function hashDir(dir) {
-    const hash = crypto.createHash("sha256");
-    function walk(current) {
-        const files = fs.readdirSync(current).sort();
-        for (const file of files) {
-            const full = path.join(current, file);
-            const stat = fs.statSync(full);
-            if (stat.isDirectory()) {
-                walk(full);
-            }
-            else {
-                hash.update(full);
-                hash.update(fs.readFileSync(full));
-            }
-        }
-    }
-    walk(dir);
-    return hash.digest("hex");
-}
-async function saveCacheSafe(paths, key) {
-    try {
-        await cache.saveCache(paths, key);
-        console.log(`cache saved: ${key}`);
-    }
-    catch (err) {
-        console.log(`cache save skipped: ${err.message}`);
-    }
-}
-async function downloadFile(url, output) {
-    return new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(output);
-        https
-            .get(url, (response) => {
-            if (response.statusCode &&
-                response.statusCode >= 300 &&
-                response.statusCode < 400 &&
-                response.headers.location) {
-                file.close();
-                fs.rmSync(output, {
-                    force: true,
-                });
-                downloadFile(response.headers.location, output)
-                    .then(resolve)
-                    .catch(reject);
-                return;
-            }
-            if (response.statusCode !== 200) {
-                reject(new Error(`download failed: ${response.statusCode}`));
-                return;
-            }
-            response.pipe(file);
-            file.on("finish", () => {
-                file.close();
-                resolve();
-            });
-        })
-            .on("error", (err) => {
-            file.close();
-            fs.rmSync(output, {
-                force: true,
-            });
-            reject(err);
-        });
-    });
-}
 async function prepareCocos(cocosUrl) {
-    const cocosKey = "cocos-" + sha256(cocosUrl);
+    const cocosKey = "cocos-" + (0, tools_1.sha256)(cocosUrl);
     const hit = await cache.restoreCache(["cocos-editor"], cocosKey);
     if (hit) {
         console.log("cocos cache hit");
@@ -37259,35 +37184,40 @@ async function prepareCocos(cocosUrl) {
         force: true,
     });
     console.log("downloading cocos creator...");
-    await downloadFile(cocosUrl, "cocos.zip");
+    await (0, tools_1.downloadFile)(cocosUrl, "cocos.zip");
     console.log("extract cocos creator...");
     const zip = new adm_zip_1.default("cocos.zip");
     zip.extractAllTo("cocos-editor", true);
-    await saveCacheSafe(["cocos-editor"], cocosKey);
+    (0, tools_1.sh)(`
+    file /Users/runner/work/zombies-coming/zombies-coming/cocos-editor/CocosCreator.app/Contents/MacOS/CocosCreator
+    `);
+    await (0, tools_1.saveCacheSafe)(["cocos-editor"], cocosKey);
 }
 function findCocosCreatorBinary() {
-    const candidates = [];
+    const result = [];
     function walk(dir) {
         const files = fs.readdirSync(dir);
         for (const file of files) {
             const full = path.join(dir, file);
+            if (!fs.existsSync(full))
+                continue;
             const stat = fs.statSync(full);
             if (stat.isDirectory()) {
                 walk(full);
             }
             else {
-                if (full.endsWith("/Contents/MacOS/CocosCreator") ||
-                    full.endsWith("\\Contents\\MacOS\\CocosCreator")) {
-                    candidates.push(full);
+                const normalized = full.replace(/\\/g, "/");
+                if (normalized.includes("CocosCreator.app/Contents/MacOS/CocosCreator")) {
+                    result.push(full);
                 }
             }
         }
     }
     walk("cocos-editor");
-    if (candidates.length === 0) {
-        throw new Error("cannot find CocosCreator binary");
+    if (result.length === 0) {
+        throw new Error("CocosCreator binary not found after extraction");
     }
-    return candidates[0];
+    return result[0];
 }
 async function buildIos(options) {
     const { iosCertP12, iosCertPassword, iosProfile, iosProfileUuid, iosTeamId, xcodeProject, xcodeScheme, } = options;
@@ -37298,7 +37228,7 @@ async function buildIos(options) {
      |--------------------------------------------------------------------------
      */
     const lockHash = fs.existsSync("package-lock.json")
-        ? hashFile("package-lock.json")
+        ? (0, tools_1.hashFile)("package-lock.json")
         : "no-lock";
     const npmCacheKey = `npm-${lockHash}`;
     const npmHit = await cache.restoreCache([`${home}/.npm`], npmCacheKey);
@@ -37310,7 +37240,7 @@ async function buildIos(options) {
     }
     await exec.exec("npm", ["ci"]);
     if (!npmHit) {
-        await saveCacheSafe([`${home}/.npm`], npmCacheKey);
+        await (0, tools_1.saveCacheSafe)([`${home}/.npm`], npmCacheKey);
     }
     /*
      |--------------------------------------------------------------------------
@@ -37318,12 +37248,12 @@ async function buildIos(options) {
      |--------------------------------------------------------------------------
      */
     const assetsHash = fs.existsSync("assets")
-        ? hashDir("assets")
+        ? (0, tools_1.hashDir)("assets")
         : "no-assets";
     const buildConfigHash = fs.existsSync("./build-config/buildConfig_ios.json")
-        ? hashFile("./build-config/buildConfig_ios.json")
+        ? (0, tools_1.hashFile)("./build-config/buildConfig_ios.json")
         : "no-build-config";
-    const cocosBuildKey = sha256(lockHash + assetsHash + buildConfigHash);
+    const cocosBuildKey = (0, tools_1.sha256)(lockHash + assetsHash + buildConfigHash);
     await cache.restoreCache(["library", "temp", "build"], `cocos-build-${cocosBuildKey}`);
     /*
      |--------------------------------------------------------------------------
@@ -37348,7 +37278,7 @@ async function buildIos(options) {
     if (!fs.existsSync("./build/ios/proj")) {
         throw new Error("cocos build failed");
     }
-    await saveCacheSafe(["library", "temp", "build"], `cocos-build-${cocosBuildKey}`);
+    await (0, tools_1.saveCacheSafe)(["library", "temp", "build"], `cocos-build-${cocosBuildKey}`);
     /*
      |--------------------------------------------------------------------------
      | certificate
@@ -37356,7 +37286,7 @@ async function buildIos(options) {
      */
     const certBuffer = Buffer.from(iosCertP12, "base64");
     fs.writeFileSync("cert.p12", certBuffer);
-    await sh(`
+    await (0, tools_1.sh)(`
     security create-keychain -p "" build.keychain
 
     security list-keychains -d user -s build.keychain
@@ -37431,13 +37361,169 @@ async function buildIos(options) {
      | save xcode cache
      |--------------------------------------------------------------------------
      */
-    await saveCacheSafe([derivedData, moduleCache], `xcode-${process.platform}`);
+    await (0, tools_1.saveCacheSafe)([derivedData, moduleCache], `xcode-${process.platform}`);
     /*
      |--------------------------------------------------------------------------
      | outputs
      |--------------------------------------------------------------------------
      */
     core.setOutput("ipa-path", "build/ipa");
+}
+
+
+/***/ }),
+
+/***/ 1732:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getInput = getInput;
+exports.sh = sh;
+exports.sha256 = sha256;
+exports.hashFile = hashFile;
+exports.hashDir = hashDir;
+exports.saveCacheSafe = saveCacheSafe;
+exports.downloadFile = downloadFile;
+const core = __importStar(__nccwpck_require__(7484));
+const cache = __importStar(__nccwpck_require__(5116));
+const exec = __importStar(__nccwpck_require__(5236));
+const crypto = __importStar(__nccwpck_require__(6982));
+const fs = __importStar(__nccwpck_require__(9896));
+const https = __importStar(__nccwpck_require__(5692));
+const path = __importStar(__nccwpck_require__(6928));
+function getInput(name) {
+    // 1. CLI 参数：--name=value
+    const cliValue = getFromCLI(name);
+    if (cliValue !== undefined)
+        return cliValue;
+    // 2. 环境变量：NAME
+    const envKey = name.replace(/-/g, "_").toUpperCase();
+    if (process.env[envKey]) {
+        return process.env[envKey];
+    }
+    // 3. GitHub Actions
+    if (core && typeof core.getInput === "function") {
+        return core.getInput(name);
+    }
+    return "";
+}
+function getFromCLI(name) {
+    const prefix = `--${name}=`;
+    for (const arg of process.argv.slice(2)) {
+        if (arg.startsWith(prefix)) {
+            return arg.slice(prefix.length);
+        }
+    }
+    return undefined;
+}
+async function sh(script) {
+    await exec.exec("bash", ["-eo", "pipefail", "-c", script]);
+}
+function sha256(content) {
+    return crypto.createHash("sha256").update(content).digest("hex");
+}
+function hashFile(file) {
+    return sha256(fs.readFileSync(file));
+}
+function hashDir(dir) {
+    const hash = crypto.createHash("sha256");
+    function walk(current) {
+        const files = fs.readdirSync(current).sort();
+        for (const file of files) {
+            const full = path.join(current, file);
+            const stat = fs.statSync(full);
+            if (stat.isDirectory()) {
+                walk(full);
+            }
+            else {
+                hash.update(full);
+                hash.update(fs.readFileSync(full));
+            }
+        }
+    }
+    walk(dir);
+    return hash.digest("hex");
+}
+async function saveCacheSafe(paths, key) {
+    try {
+        await cache.saveCache(paths, key);
+        console.log(`cache saved: ${key}`);
+    }
+    catch (err) {
+        console.log(`cache save skipped: ${err.message}`);
+    }
+}
+async function downloadFile(url, output) {
+    return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(output);
+        https
+            .get(url, (response) => {
+            if (response.statusCode &&
+                response.statusCode >= 300 &&
+                response.statusCode < 400 &&
+                response.headers.location) {
+                file.close();
+                fs.rmSync(output, {
+                    force: true,
+                });
+                downloadFile(response.headers.location, output)
+                    .then(resolve)
+                    .catch(reject);
+                return;
+            }
+            if (response.statusCode !== 200) {
+                reject(new Error(`download failed: ${response.statusCode}`));
+                return;
+            }
+            response.pipe(file);
+            file.on("finish", () => {
+                file.close();
+                resolve();
+            });
+        })
+            .on("error", (err) => {
+            file.close();
+            fs.rmSync(output, {
+                force: true,
+            });
+            reject(err);
+        });
+    });
 }
 
 
