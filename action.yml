@@ -1,0 +1,39 @@
+name: "Cocos Build"
+description: "Build cocos project and publish release assets"
+
+inputs:
+  platform:
+    required: true
+    default: web-mobile
+
+  cocos-url:
+    required: true
+
+  ios-cert-p12:
+    required: false
+
+  ios-cert-password:
+    required: false
+
+  ios-profile:
+    required: false
+
+  ios-profile-uuid:
+    required: false
+
+  ios-team-id:
+    required: false
+
+  android-keystore:
+    required: false
+
+  android-password:
+    required: false
+
+outputs:
+  build-path:
+    description: "Path to build output"
+
+runs:
+  using: "node24"
+  main: "dist/index.js"

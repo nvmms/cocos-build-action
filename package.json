@@ -1,0 +1,24 @@
+{
+  "name": "cocos-build",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && ncc build src/index.ts -o dist"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@actions/cache": "^6.0.1",
+    "@actions/core": "^1.11.0",
+    "@actions/exec": "^1.1.0",
+    "adm-zip": "^0.5.17"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^25.9.1",
+    "@vercel/ncc": "^0.38.0",
+    "fs": "^0.0.1-security",
+    "typescript": "^5.0.0"
+  }
+}
